@@ -108,11 +108,29 @@ class DecisionTree:
     def error(self, data):
         return np.sum(data[:, -1] != self.predict_data(data))/data.shape[0]
 
+    def output_label(self, data, out_file):
+        labels = self.predict_data(data)
+        with open(out_file, "w+") as f:
+            f.write("\n".join(labels.astype(str).tolist()))
+
+    def pretty_print(self, prefix=""):
+        ys = self.data[:,-1]
+        print("| "* self.level+ f"{prefix}[{np.sum(ys==0)} 0/{np.sum(ys==1)} 1]")
+        if self.split_index == None:
+            return
+        if self.left_node:
+            self.left_node.pretty_print(f"{self.labels[self.split_index]} = 0: ")
+        if self.right_node:
+            self.right_node.pretty_print(f"{self.labels[self.split_index]} = 1: ")
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3:
+    if len(sys.argv) == 7:
         input_train = sys.argv[1]
         input_test = sys.argv[2]
+        max_depth = int(sys.argv[3])
+        output_train = sys.argv[4]
+        output_test = sys.argv[5]
+        output_metric = sys.argv[6]
     else:
         raise ValueError(
             "Please pass in five command line arguments: "
@@ -123,7 +141,21 @@ if __name__ == "__main__":
     test = Input(input_test)
     train.read()
     test.read()
-    model = DecisionTree(train.data, train.labels, 0, 2)
+    model = DecisionTree(train.data, train.labels, 0, max_depth)
     model.fit()
-    print(model.error(train.data))
-    print(model.error(test.data))
+    model.output_label(train.data, output_train)
+    model.output_label(test.data, output_test)
+    with open(output_metric, "w+") as f:
+        f.write(f"error(train): {model.error(train.data)}\n"
+                f"error(test): {model.error(test.data)}")
+    model.pretty_print()
+
+"""
+python3 hw2/decision_tree.py hw2/handout/small_train.tsv hw2/handout/small_test.tsv \
+2 small_2_train.txt small_2_test.txt small_2_metrics.txt
+""" 
+
+"""
+python3 hw2/decision_tree.py hw2/handout/education_train.tsv hw2/handout/education_test.tsv \
+3 education_3_train.txt education_3_test.txt education_3_metrics.txt
+""" 
