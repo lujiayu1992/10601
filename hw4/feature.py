@@ -49,20 +49,46 @@ def load_feature_dictionary(file):
     return glove_map
 
 
+class Encoder:
+    def __init__(self, file_name):
+        self.glove_map = load_feature_dictionary(file_name)
+
+    def encode(self, file_name):
+        dataset = load_tsv_dataset(file_name)
+        label = np.array([row[0] for row in dataset])
+        reviews = [row[1] for row in dataset]
+        review_features = np.array([self.feature(review)
+                                   for review in reviews])
+        return np.concatenate((label.reshape(label.size, 1), review_features), axis=1)
+
+    def feature(self, review):
+        words = np.array(review.split(), dtype=object)
+        embed = np.array([self.glove_map[word]
+                         for word in words if word in self.glove_map])
+        return np.average(embed, axis=0)
+
+    def format(self, input_file, output_file):
+        features = self.encode(input_file)
+        np.savetxt(output_file, features, delimiter='\t', fmt='%.6f')
+
+
 if __name__ == '__main__':
     # This takes care of command line argument parsing for you!
     # To access a specific argument, simply access args.<argument name>.
     # For example, to get the train_input path, you can use `args.train_input`.
     parser = argparse.ArgumentParser()
-    parser.add_argument("train_input", type=str, help='path to training input .tsv file')
-    parser.add_argument("validation_input", type=str, help='path to validation input .tsv file')
-    parser.add_argument("test_input", type=str, help='path to the input .tsv file')
-    parser.add_argument("feature_dictionary_in", type=str, 
+    parser.add_argument("train_input", type=str,
+                        help='path to training input .tsv file')
+    # parser.add_argument("validation_input", type=str, help='path to validation input .tsv file')
+    # parser.add_argument("test_input", type=str, help='path to the input .tsv file')
+    parser.add_argument("feature_dictionary_in", type=str,
                         help='path to the GloVe feature dictionary .txt file')
-    parser.add_argument("train_out", type=str, 
+    parser.add_argument("train_out", type=str,
                         help='path to output .tsv file to which the feature extractions on the training data should be written')
-    parser.add_argument("validation_out", type=str, 
-                        help='path to output .tsv file to which the feature extractions on the validation data should be written')
-    parser.add_argument("test_out", type=str, 
-                        help='path to output .tsv file to which the feature extractions on the test data should be written')
+    # parser.add_argument("validation_out", type=str,
+    #                     help='path to output .tsv file to which the feature extractions on the validation data should be written')
+    # parser.add_argument("test_out", type=str,
+    #                     help='path to output .tsv file to which the feature extractions on the test data should be written')
     args = parser.parse_args()
+    encoder = Encoder(args.feature_dictionary_in)
+    encoder.format(args.train_input, args.train_out)
