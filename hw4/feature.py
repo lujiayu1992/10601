@@ -71,7 +71,14 @@ class Encoder:
         features = self.encode(input_file)
         np.savetxt(output_file, features, delimiter='\t', fmt='%.6f')
 
+class File:
+    def __init__(self, input_file, output_file):
+        self.input_file = input_file
+        self.output_file = output_file
 
+    def process(self, encoder):
+        encoder.format(self.input_file, self.output_file)
+        
 if __name__ == '__main__':
     # This takes care of command line argument parsing for you!
     # To access a specific argument, simply access args.<argument name>.
@@ -79,16 +86,22 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("train_input", type=str,
                         help='path to training input .tsv file')
-    # parser.add_argument("validation_input", type=str, help='path to validation input .tsv file')
-    # parser.add_argument("test_input", type=str, help='path to the input .tsv file')
+    parser.add_argument("validation_input", type=str, help='path to validation input .tsv file')
+    parser.add_argument("test_input", type=str, help='path to the input .tsv file')
     parser.add_argument("feature_dictionary_in", type=str,
                         help='path to the GloVe feature dictionary .txt file')
     parser.add_argument("train_out", type=str,
                         help='path to output .tsv file to which the feature extractions on the training data should be written')
-    # parser.add_argument("validation_out", type=str,
-    #                     help='path to output .tsv file to which the feature extractions on the validation data should be written')
-    # parser.add_argument("test_out", type=str,
-    #                     help='path to output .tsv file to which the feature extractions on the test data should be written')
+    parser.add_argument("validation_out", type=str,
+                        help='path to output .tsv file to which the feature extractions on the validation data should be written')
+    parser.add_argument("test_out", type=str,
+                        help='path to output .tsv file to which the feature extractions on the test data should be written')
     args = parser.parse_args()
     encoder = Encoder(args.feature_dictionary_in)
-    encoder.format(args.train_input, args.train_out)
+    train = File(args.train_input, args.train_out)
+    val = File(args.validation_input,  args.validation_out)
+    test = File(args.test_input, args.test_out)
+    # encoder.format(args.train_input, args.train_out)
+    train.process(encoder)
+    val.process(encoder)
+    test.process(encoder)

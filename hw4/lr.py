@@ -35,7 +35,6 @@ def train(
             # print("sig", sig, "y", y[i],"predict", np.sign(X[i] @ theda))
             derivative = -(y[i]-sig)*X[i]
             theda -= learning_rate*derivative
-    return theda
 
 
 def predict(
@@ -72,16 +71,29 @@ class Model:
         N = self.X.shape[1]
         self.theda = np.zeros(N+1)
         self.X = np.insert(self.X, 0, 1, axis=1)
-        self.theda = train(self.theda, self.X, self.Y,
-                           num_epoch, learning_rate)
+        train(self.theda, self.X, self.Y,
+              num_epoch, learning_rate)
 
-    def error(self, input_file):
+    def error(self, input_file=None):
+        if not input_file:
+            return compute_error(predict(self.theda, self.X), self.Y)
+        return compute_error(*self.predict(input_file))
+
+    def predict(self, input_file):
         X, Y = read_file(input_file)
         X = np.insert(X, 0, 1, axis=1)
-        return compute_error(predict(self.theda, X), Y)
+        return predict(self.theda, X), Y
 
-    def metrics(self):
-        return compute_error(predict(self.theda, self.X), self.Y)
+
+class Process:
+    def __init__(self, input, output):
+        self.input = input
+        self.output = output
+
+    def label_and_metric(self, model):
+        y_pred, _ = model.predict(self.input)
+        np.savetxt(self.output, y_pred, delimiter='\n', fmt='%.0f')
+        return model.error(self.input)
 
 
 if __name__ == '__main__':
@@ -91,16 +103,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("train_input", type=str,
                         help='path to formatted training data')
-    # parser.add_argument("validation_input", type=str,
-    #                     help='path to formatted validation data')
+    parser.add_argument("validation_input", type=str,
+                        help='path to formatted validation data')
     parser.add_argument("test_input", type=str,
                         help='path to formatted test data')
-    # parser.add_argument("train_out", type=str,
-    #                     help='file to write train predictions to')
-    # parser.add_argument("test_out", type=str,
-    #                     help='file to write test predictions to')
-    # parser.add_argument("metrics_out", type=str,
-    #                     help='file to write metrics to')
+    parser.add_argument("train_out", type=str,
+                        help='file to write train predictions to')
+    parser.add_argument("test_out", type=str,
+                        help='file to write test predictions to')
+    parser.add_argument("metrics_out", type=str,
+                        help='file to write metrics to')
     parser.add_argument("num_epoch", type=int,
                         help='number of epochs of stochastic gradient descent to run')
     parser.add_argument("learning_rate", type=float,
@@ -108,5 +120,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
     model = Model(args.train_input)
     model.train(args.num_epoch, args.learning_rate)
-    print(model.metrics())
-    print(model.error(args.test_input))
+
+    train = Process(args.train_input, args.train_out)
+    test = Process(args.test_input, args.test_out)
+    val = Process(args.validation_input, None)
+
+    train_error = train.label_and_metric(model)
+    test_error = test.label_and_metric(model)
+    with open(args.metrics_out, "w+") as f:
+        f.write(f"error(train): {train_error:.6f}\n")
+        f.write(f"error(test): {test_error:.6f}")
